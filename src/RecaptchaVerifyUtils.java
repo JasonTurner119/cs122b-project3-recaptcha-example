@@ -1,6 +1,7 @@
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import javax.net.ssl.HttpsURLConnection;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -10,7 +11,7 @@ public class RecaptchaVerifyUtils {
 
     public static final String SITE_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
 
-    public static void verify(String gRecaptchaResponse) throws Exception {
+    public static RecaptchaVerificationStatus verify(String gRecaptchaResponse) throws IOException {
         URL verifyUrl = new URL(SITE_VERIFY_URL);
 
         // Open Connection to URL
@@ -45,10 +46,10 @@ public class RecaptchaVerifyUtils {
 
         if (jsonObject.get("success").getAsBoolean()) {
             // verification succeed
-            return;
+            return RecaptchaVerificationStatus.VERIFIED;
         }
 
-        throw new Exception("recaptcha verification failed: response is " + jsonObject);
+        return RecaptchaVerificationStatus.UNVERIFIED;
     }
 
 }
