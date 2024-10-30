@@ -1,108 +1,108 @@
+import jakarta.servlet.ServletConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.Statement;
+import java.sql.*;
 
 @WebServlet(name = "FormReCaptcha", urlPatterns = "/form-recaptcha")
 public class FormRecaptcha extends HttpServlet {
+
     private static final long serialVersionUID = 1L;
 
-    public String getServletInfo() {
-        return "Servlet connects to MySQL database and displays result of a SELECT";
+    private static final String loginUser = "mytestuser";
+    private static final String loginPasswd = "My6$Password";
+    private static final String loginUrl = "jdbc:mysql://localhost:3306/moviedbexample";
+    
+    private static final String G_RECAPTCHA_RESPONSE_PARAMETER_NAME = "g-recaptcha-response";
+    private static final String SEARCHED_STAR_NAME_PARAMETER_NAME = "name";
+
+    private static final String GET_STARS_SQL = "SELECT * FROM stars WHERE name LIKE ?";
+    
+    Connection databaseConnection;
+    
+    @Override
+    public void init(ServletConfig config) {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            databaseConnection = DriverManager.getConnection(loginUrl, loginUser, loginPasswd);
+        } catch (SQLException | ClassNotFoundException exception) {
+            System.out.println("Error connecting to database.");
+            System.out.println(exception.getMessage());
+        }
     }
 
-    public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    @Override
+    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        
+        response.setContentType("text/html");
         PrintWriter out = response.getWriter();
 
-        String gRecaptchaResponse = request.getParameter("g-recaptcha-response");
+        String gRecaptchaResponse = request.getParameter(G_RECAPTCHA_RESPONSE_PARAMETER_NAME);
         System.out.println("gRecaptchaResponse=" + gRecaptchaResponse);
 
-        // Verify reCAPTCHA
         RecaptchaVerificationStatus verification = RecaptchaVerifyUtils.verify(gRecaptchaResponse);
         if (verification != RecaptchaVerificationStatus.VERIFIED) {
-            out.println("<html>");
-            out.println("<head><title>Error</title></head>");
-            out.println("<body>");
-            out.println("<p>recaptcha verification error</p>");
-            out.println("</body>");
-            out.println("</html>");
-
-            out.close();
+            out.println(
+                getErrorHtml("Recaptcha Verification Error")
+            );
             return;
         }
 
-        String loginUser = "mytestuser";
-        String loginPasswd = "My6$Password";
-        String loginUrl = "jdbc:mysql://localhost:3306/moviedbexample";
+        try (PreparedStatement statement = databaseConnection.prepareStatement(GET_STARS_SQL)) {
 
-        response.setContentType("text/html"); // Response mime type
+            String name = request.getParameter(SEARCHED_STAR_NAME_PARAMETER_NAME);
+            statement.setString(1, name);
 
-        try {
-            // Create a new connection to database
-            Class.forName("com.mysql.cj.jdbc.Driver");
+            ResultSet resultSet = statement.executeQuery();
 
-            Connection dbCon = DriverManager.getConnection(loginUrl, loginUser, loginPasswd);
+            out.println(getLeadingHtml());
 
-            // Declare a new statement
-            Statement statement = dbCon.createStatement();
-
-            // Retrieve parameter "name" from request, which refers to the value of <input name="name"> in index.html
-            String name = request.getParameter("name");
-
-            // Generate a SQL query
-            String query = String.format("SELECT * from stars where name like '%s'", name);
-
-            // Perform the query
-            ResultSet rs = statement.executeQuery(query);
-
-            // building page head with title
-            out.println("<html><head><title>MovieDB: Found Records</title></head>");
-
-            // building page body
-            out.println("<body><h1>MovieDB: Found Records</h1>");
-
-            // Create a html <table>
-            out.println("<table border>");
-
-            // Iterate through each row of rs and create a table row <tr>
-            out.println("<tr><td>ID</td><td>Name</td></tr>");
-            while (rs.next()) {
-                String m_ID = rs.getString("ID");
-                String m_Name = rs.getString("name");
-                out.println(String.format("<tr><td>%s</td><td>%s</td></tr>", m_ID, m_Name));
+            while (resultSet.next()) {
+                out.println(
+                    getStarTableRowHtml(resultSet)
+                );
             }
-            out.println("</table>");
 
-            out.println("</body></html>");
+            out.println(getTrailingHtml());
 
-
-            // Close all structures
-            rs.close();
-            statement.close();
-            dbCon.close();
-
-        } catch (Exception e) {
-            out.println("<html>");
-            out.println("<head><title>Error</title></head>");
-            out.println("<body>");
-            out.println("<p>error:</p>");
-            out.println("<p>" + e.getMessage() + "</p>");
-            out.println("</body>");
-            out.println("</html>");
-
-            out.close();
-            return;
+        } catch (Exception exception) {
+            out.println(
+                getErrorHtml(exception.getMessage())
+            );
         }
-        out.close();
+        
     }
 
-    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        doGet(request, response);
+    private static String getErrorHtml(String message) {
+        return
+            "<html>" +
+            "<head><title>Error</title></head>" +
+            "<body>" +
+            "<p>error: " + message + "</p>" +
+            "</body>" +
+            "</html>";
+        
     }
+    
+    private static String getStarTableRowHtml(ResultSet resultSet) throws SQLException {
+        String starId = resultSet.getString("id");
+        String starName = resultSet.getString("name");
+        return String.format("<tr><td>%s</td><td>%s</td></tr>", starId, starName);
+    }
+    
+    private static String getLeadingHtml() {
+        return
+            "<html><head><title> MovieDB: Found Records </title></head>" +
+            "<body><h1> MovieDB: Found Records </h1>" +
+            "<table border>" +
+            "<tr><td> ID </td><td> Name </td></tr>";
+    }
+    
+    private static String getTrailingHtml() {
+        return "</table></body></html>";
+    }
+    
 }
