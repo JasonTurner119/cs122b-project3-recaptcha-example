@@ -25,7 +25,10 @@ public class RecaptchaVerifyUtils {
             .build();
 
         try {
-            HttpResponse<String> httpResponse = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> httpResponse = httpClient.send(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+            );
             JsonObject jsonObject = new Gson().fromJson(httpResponse.body(), JsonObject.class);
             boolean success = jsonObject.get("success").getAsBoolean();
             if (success) {

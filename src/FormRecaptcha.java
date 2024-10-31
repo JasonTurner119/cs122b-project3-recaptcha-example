@@ -14,7 +14,7 @@ public class FormRecaptcha extends HttpServlet {
 
     private static final String loginUser = "mytestuser";
     private static final String loginPasswd = "My6$Password";
-    private static final String loginUrl = "jdbc:mysql://localhost:3306/moviedbexample";
+    private static final String loginUrl = "jdbc:mysql://localhost:3306/moviedb";
     
     private static final String G_RECAPTCHA_RESPONSE_PARAMETER_NAME = "g-recaptcha-response";
     private static final String SEARCHED_STAR_NAME_PARAMETER_NAME = "name";
@@ -26,16 +26,18 @@ public class FormRecaptcha extends HttpServlet {
     @Override
     public void init(ServletConfig config) {
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
             databaseConnection = DriverManager.getConnection(loginUrl, loginUser, loginPasswd);
-        } catch (SQLException | ClassNotFoundException exception) {
+        } catch (SQLException exception) {
             System.out.println("Error connecting to database.");
             System.out.println(exception.getMessage());
         }
     }
 
     @Override
-    public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public void doPost(
+        HttpServletRequest request,
+        HttpServletResponse response
+    ) throws IOException {
         
         response.setContentType("text/html");
         PrintWriter out = response.getWriter();
